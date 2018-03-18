@@ -1,0 +1,9 @@
+<eventReceiver name="httpReciever001" statistics="disable"
+    trace="disable" xmlns="http://wso2.org/carbon/eventreceiver">
+    <from eventAdapterType="http">
+        <property name="transports">all</property>
+        <property name="basicAuthEnabled">true</property>
+    </from>
+    <mapping customMapping="disable" type="json"/>
+    <to streamName="geosmart.test" version="1.0.0"/>
+</eventReceiver>

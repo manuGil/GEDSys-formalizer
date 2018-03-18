@@ -1,0 +1,20 @@
+/* Enter a unique ExecutionPlan */
+@Plan:name('ExecutionPlanTest')
+
+/* Enter a unique description for ExecutionPlan */
+-- @Plan:description('ExecutionPlan')
+
+/* define streams/tables and write queries here ... */
+
+/* mapping input stream(s) */
+@Import('geosmart.test.in:1.0.0')
+define stream inputs (meta_observation_id long, meta_result_time string, meta_symbol string, correlation_generator_id string, temperature double, x_coord double, y_coord double);
+
+/* mapping outputs into an existing stream */
+@Export('geosmart.test.out:1.0.0')
+define stream outputs (meta_observation_id long, meta_result_time string, meta_symbol string, correlation_generator_id string, temperature double, x_coord double, y_coord double);
+
+/* query using Siddhiql */
+from inputs [temperature > 20]
+select meta_observation_id, meta_result_time, meta_symbol, correlation_generator_id, temperature, x_coord, y_coord
+insert into output

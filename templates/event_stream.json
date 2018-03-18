@@ -1,0 +1,40 @@
+  {
+  "name": "geosmart.test100",
+  "version": "1.0.0",
+  "nickName": "streamTest",
+  "description": "stream test",
+  "metaData": [
+    {
+      "name": "observation_id",
+      "type": "LONG"
+    },
+    {
+      "name": "result_time",
+      "type": "STRING"
+    },
+    {
+      "name": "symbol",
+      "type": "STRING"
+    }
+  ],
+  "correlationData": [
+    {
+      "name": "generator_id",
+      "type": "STRING"
+    }
+  ],
+  "payloadData": [
+    {
+      "name": "temperature",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "x_coord",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "y_coord",
+      "type": "DOUBLE"
+    }
+  ]
+  }

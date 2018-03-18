@@ -1,0 +1,17 @@
+Hot Directories for deploying event configuration files in WSO2 DAS 3.0
+
+HTTP receivers: XML files
+<PRODUCT _HOME>/repository/deployment/server/eventreceivers/
+
+Event streams: JSON files
+<PRODUCT _HOME>/repository/deployment/server/eventstreams/
+
+
+Execution plans:
+Save files as *.siddhiql
+<PRODUCT_HOME>/repository/deployment/server/executionplans
+
+Publishers:
+ <PRODUCT _HOME>/repository/deployment/server/eventpublishers/
+
+

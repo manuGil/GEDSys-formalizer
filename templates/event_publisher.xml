@@ -1,0 +1,9 @@
+'''<eventPublisher name="EVENT-PUBLISHER-NAME" statistics="disable"
+  trace="disable" xmlns="http://wso2.org/carbon/eventpublisher">
+  <from streamName="Test Stream" version="1.0.0"/>
+  <mapping customMapping="disable" type="text"/>
+  <to eventAdapterType="EVENT-ADAPTER-TYPE">
+     .....................
+      describe type as showed in: https://docs.wso2.com/display/DAS310/Event+Publisher+Types
+  </to>
+</eventPublisher>'''

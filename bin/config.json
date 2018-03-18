@@ -1,0 +1,25 @@
+{
+  "geosmart.sys": {
+    "sensorapis": [ {
+      "name": "smart santander",
+      "root url": "http://130.89.217.201:8080/SensorThingsServer/v1.0"
+    }],
+    "cep": {
+      "hostname": "130.89.217.201",
+      "port": 22,
+      "root url": "http://130.89.217.201:9763/endpoints",
+      "username": "geosmartsys",
+      "passphrase": "CeP#geo-event",
+      "private key": "C:/phd_dev/GeoSmart_sys/Formalizer/keys/id_rsa",
+      "home directory": "/home/wso2cep/wso2das-3.1.0",
+      "stream subdir": "/repository/deployment/server/eventstreams",
+      "receiver subdir": "/repository/deployment/server/eventreceivers",
+      "plan subdir": "/repository/deployment/server/executionplans",
+      "publisher subdir": "/repository/deployment/server/eventpublishers"
+    },
+    "handler": {
+      "local directory": "../temp",
+      "logs": "C://phd_dev/GeoSmart_sys/Formalizer/logs/handler.log"
+    }
+  }
+}

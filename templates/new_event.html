@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block title %}Declare new Geographic Event {% endblock %}
+{% block body %}
+<h2>Create Event</h2>
+<form action="" method="post">
+    {% if error %}
+    <p class="error"><strong>Error:</strong>> {{ error }}
+    {% endif %}</p>Event Definition:
+<input type="text" name="event" value="{{ JSON }}" class="eventinput">
+<input type="submit" value="Create">
+</form>
+{% endblock %}
