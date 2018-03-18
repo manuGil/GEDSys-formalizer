@@ -1,5 +1,7 @@
 # Event Formalizer
 
+Implementation of the Formalizer component for the Geographic Event Detection System.
+
 ## Event Definition
 Users define events by providing a name, a update frequency (in milliseconds), and a set of properties. Event definitions are formatted as JSON objects, with the following pattern:
 
@@ -53,7 +55,7 @@ An event definition are embedded using the <a href= "http://jsonlogic.com/">Json
 
 More complex rules are possible, including multiple conditions, logic operators (AND, OR), and negation.
 
-## Deploying files on the CEP Server
+## Deploying files in the CEP Server (WSO2DAS-3.1.0)
 
 The CEP server should be configured before an geo-event can start the detection process. for this two operations are essential. First, a data entry point needs to be created in the CEP server. This is achieved by creating a 'HTTP receirver' and an 'event stream'. Second, an 'execution plan', which contains detections rules, need to be created and associated with the 'event stream'.
 
@@ -81,10 +83,3 @@ insert into <output stream name>
 
 ### Publisher
 A publisher pushes data (filtered or not) through output connectors. In this implementation two types of publishers are available. UI publishers are meant to be used only withing WSO2CEP server and its built in dashboard. HTTP publishers can be use to push data to URL in a web service. Publisher definition files are XML files.
-
-```
-"POLYGON((-3.815358348846435 43.45897465327482,  -3.813354274749756 43.455766186244, -3.809586597442627 43.456975019613435, -3.8109898567199707 43.459990427792775,  -3.815358348846435 43.45897465327482))"
-
-all area
-POLYGON((-3.8469736283051370 43.4414847853464039, -3.8469736283051370 43.4863448420050389,  -3.7663235810882401 43.4863448420050389, -3.7663235810882401 43.4414847853464039, -3.8469736283051370 43.4414847853464039))
-```
