@@ -11,7 +11,7 @@ import datetime
 import shapely.geos as geos
 import shapely.wkt as wkt
 import requests
-import cep
+from bin import cep
 import time
 import tempfile
 import json
@@ -288,12 +288,7 @@ class StreamGenerator:
         self.receiver = receiver_endpoint
         self.status = 'stopped'
 
-    def start_streaming(self):
-        thread = threading.Thread(target=self.streaming, args=())
-        thread.daemon = True
-        thread.start()
-
-    def streaming(self):
+    def stream_to_cep(self):
         """
         :param receiver_endpoint: url to the receiver endpoint
         :return:
@@ -303,7 +298,7 @@ class StreamGenerator:
         sensor_api = requests.Session()
         # start session at CEP server
         cep_engine = requests.Session()
-        while self.running and (datetime.datetime.now() < datetime.datetime.strptime(self.expiration, "%Y-%m-%dT%H:%M:%SZ")):
+        if self.running and (datetime.datetime.now() < datetime.datetime.strptime(self.expiration, "%Y-%m-%dT%H:%M:%SZ")):
             # retrieve data
             # TODO: check for time stamp for avoiding sending redundant data
             latest_observation = sensor_api.get(self.datastream + '/Observations?$top=1&$expand=Datastream')
@@ -314,17 +309,13 @@ class StreamGenerator:
             mapped_observation = cep.map_datatastream(self._id, latest_observation_json, coords, self.stream_definition)
 
             # push data to cep server
-            cep_engine.post(self.receiver, json=mapped_observation, verify=False)
             log.info("datastream | " + self._id)
+            cep_engine.post(self.receiver, json=mapped_observation, verify=False)
             print(self._id)
             time.sleep(self.update_frequency/1000)  # time in seconds
             self.running = False # force stop after sending data once
             # print('observation value', mapped_observation)
         return
-
-    def stop_streaming(self):
-        self.running = False
-        self.status = 'stopped'
 
 
 class EventHandler:

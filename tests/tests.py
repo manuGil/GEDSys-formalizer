@@ -19,6 +19,8 @@ with open(conf_file) as ffile:
     open_file = ffile.read()
     conf = json.loads(open_file)
 
+reciever_url = 'http://localhost:9763/endpoints/httpReceiver001'
+
 stream_def_test= {
   "name": "geosmart.remote.test100",
   "version": "1.0.0",
@@ -87,7 +89,7 @@ class TestGevent(unittest.TestCase):
 
     def test_StreamGenerator(self):
         expiration = '2018-01-31T10:00:00Z'
-        g = ge.StreamGenerator('http://130.89.217.201:8080/SensorThingsServer/v1.0/Datastreams(4)', expiration)
+        g = ge.StreamGenerator('http://130.89.217.201:8080/SensorThingsServer/v1.0/Datastreams(4)', expiration, receiver_endpoint=reciever_url)
         self.assertIsInstance(g, ge.StreamGenerator, 'Failed to instantiate StreamGenerator')
 
         # test CEP connection
@@ -96,7 +98,7 @@ class TestGevent(unittest.TestCase):
 class TesCep(unittest.TestCase):
 
     def test_define_receiver(self):
-        receiver_test = '''<?xml version="1.0" encoding="UTF-8"?><eventReceiver name="httpReceiver001" statistics="disable" trace="disable" xmlns="http://wso2.org/carbon/eventreceiver"> <from eventAdapterType="http"> <property name="transports">all</property> <property name="basicAuthEnabled">true</property> </from> <mapping customMapping="disable" type="json"/> <to streamName="geosmart.test001" version="1.0.0"/> </eventReceiver>'''
+        receiver_test = '''<?xml version="1.0" encoding="UTF-8"?><eventReceiver name="httpReceiver001" statistics="enable" trace="enable" xmlns="http://wso2.org/carbon/eventreceiver"> <from eventAdapterType="http"> <property name="transports">all</property> <property name="basicAuthEnabled">true</property> </from> <mapping customMapping="disable" type="json"/> <to streamName="geosmart.test001" version="1.0.0"/> </eventReceiver>'''
         id_ = "001"
         stream_name = "geosmart.test001"
         version = "1.0.0"
@@ -154,7 +156,7 @@ class TesCep(unittest.TestCase):
         self.assertTrue(remove_cep, 'Stream file was not removed from the CEP server')
 
     def test_cep_query(self):
-        test_query = 'from inputs [Temperature < 25.0] select * insert into outputs'
+        test_query = 'from inputs [Temperature > -1000] select * insert into outputs'
         condition = definition['properties']['attributive']['conditions'].items().__iter__()
         query = cep.cep_query(condition.__next__(), 'inputs', 'outputs')
         self.assertMultiLineEqual(query, test_query, 'Query does not have the right format')
