@@ -7,6 +7,7 @@ from bin import cep
 import os
 import copy
 import tempfile
+import  time
 
 file_dir = os.path.dirname(__file__)
 test_event = file_dir + '\event_def_test.json' # test data
@@ -92,7 +93,29 @@ class TestGevent(unittest.TestCase):
         g = ge.StreamGenerator('http://130.89.217.201:8080/SensorThingsServer/v1.0/Datastreams(4)', expiration, receiver_endpoint=reciever_url)
         self.assertIsInstance(g, ge.StreamGenerator, 'Failed to instantiate StreamGenerator')
 
-        # test CEP connection
+    def test_collect_observations(self):
+        api_root = 'http://130.89.217.201:8080/frost-server/v1.0'
+        extent = 'POLYGON((-3.8469736283051370 43.4414847853464039, -3.8469736283051370 43.4863448420050389,  -3.7663235810882401 43.4863448420050389, -3.7663235810882401 43.4414847853464039, -3.8469736283051370 43.4414847853464039))'
+        phenomenon = 'Luminosity'
+        prepared_request = ge.prepare_observations_request(api_root, extent, phenomenon)
+        # print(prepared_request)
+        obs = ge.collect_observations(prepared_request)
+
+
+    def test_ObservationsBuffer(self):
+        api_root = 'http://130.89.217.201:8080/frost-server/v1.0'
+        extent = 'POLYGON((-3.8469736283051370 43.4414847853464039, -3.8469736283051370 43.4863448420050389,  -3.7663235810882401 43.4863448420050389, -3.7663235810882401 43.4414847853464039, -3.8469736283051370 43.4414847853464039))'
+        phenomenon = 'Luminosity'
+        prepared_request = ge.prepare_observations_request(api_root, extent, phenomenon)
+        buffer = ge.ObservationsBuffer(prepared_request, 5)
+        print(buffer.last_update)
+
+        time.sleep(10)
+        buffer.update_data()
+        print(buffer.last_update)
+        self.assertIsInstance(buffer, ge.ObservationsBuffer, 'Failed to instantiate ObservationsBuffer')
+
+
 
 
 class TesCep(unittest.TestCase):

@@ -159,6 +159,7 @@ def find_datastreams(sensor_api_root, extent, phenomenon, event_object=''):
               "&$filter=geo.intersects(Things/Locations/location,geography'" + \
               extent + "')" + \
               " and Datastreams/ObservedProperty/name eq '" + phenomenon + "'"
+        print(request_uri)
 
         try:
             request = requests.get(url=request_uri)  #json object
@@ -205,6 +206,75 @@ def get_xy_coord(location_json):
 
     return response
 
+def prepare_observations_request(sensor_api_root, extent, phenomenon, page_size=200):
+    """
+       Prepares a http request to retrieve latest observations from all Things (sensing devices) that intersect the extent and belong to phenomena
+       :param sensor_api_root: root url to the API
+       :param extent: WKT of a polygon
+       :param phenomenon: Name of the phenomena, case sensitive
+       :param page_size: page size for handling pagination. Max page size depends on API settings.
+       Depending on the amount of data involved; big values will increase response  time,
+       small values will increase number of individual requests
+       :return: http request
+    """
+
+    if is_valid_wkt_polygon(extent):
+        observations_request = sensor_api_root + "/Things?$top="+ str(page_size) + \
+            "&$select=name,@iot.id&$expand=Datastreams($select=@iot.selflink," + \
+            "unitOfMeasurement;$expand=Observations($orderby=phenomenonTime desc;$top=1))," + \
+                      "Locations($select=location)&$filter=geo.intersects(Things/Locations/location," + \
+                      "geography'" + extent + "')" + \
+                      " and Datastreams/ObservedProperty/name eq '" + phenomenon + "'"
+
+        # Construct test request, will retrieve only one item
+        test_request = sensor_api_root + "/Things?$top=1" + \
+            "&$select=name,@iot.id&$expand=Datastreams($select=@iot.selflink," + \
+            "unitOfMeasurement;$expand=Observations($orderby=phenomenonTime desc;$top=1))," + \
+                      "Locations($select=location)&$filter=geo.intersects(Things/Locations/location," + \
+                      "geography'" + extent + "')" + \
+                      " and Datastreams/ObservedProperty/name eq '" + phenomenon + "'"
+
+        try:
+            test = requests.get(url=test_request)  # json object
+
+        except requests.HTTPError:
+            print('HTTP error for the request: ' + str(observations_request))
+    else:
+        print('Extent definition is not valid')
+        return
+    return observations_request
+
+
+def collect_observations(observations_request):
+    """
+    Retrieve latest observations from all Things (sensing devices) that intersect the extent and belong to phenomena
+    :param observations_request: prepared observations request
+    :return: A list  of things, their locations and the latest observation
+    """
+
+    try:
+            request = requests.get(url=observations_request)  # json object
+    except requests.HTTPError:
+            print('HTTP error for the request: ' + str(observations_request))
+    else:
+        # make first request
+
+        response_json = request.json()
+        # collect data
+        observations = response_json["value"]  # collect things from all responses. A list
+
+        make_request = True
+        # retrieve data from all pages
+        while make_request:
+            if '@iot.nextLink' in response_json:
+                request = requests.get(response_json['@iot.nextLink'])
+                response_json = request.json()
+                observations = observations + response_json['value']
+            else:
+                make_request = False
+        return observations
+
+
 
 def test_remote_connection(url):
     """ Test if a remote HTTP connection is listening
@@ -213,6 +283,77 @@ def test_remote_connection(url):
     r = requests.get(url)
     r.raise_for_status()
     return True
+
+
+class ObservationsBuffer:
+    """
+    Buffers a list of observations from the SensorThingAPI
+
+    Attributes:
+        request: request definition to collect observations
+        data: list of observations
+        update_interval: time interval in seconds
+        control = control the start and stop of auto_update
+    Methods:
+        update_data: Update list of observations in data attribute
+        auto_update: continuously update the buffer given a time time interval
+    """
+
+    def __init__(self, request, update_interval):
+        self.data = None
+        self.request = request
+        self.last_update = None
+        self.update_interval = update_interval
+        # self.control = 'stop'
+
+        try:
+            self.data = collect_observations(request)
+        except Exception as e:
+            print('Requesting data raised an exception: ', e)
+        else:
+            self.last_update = datetime.datetime.now().isoformat()
+
+    def update_data(self):
+        """
+        Update buffer manually
+        :return:
+        """
+        # if self.control == 'stopped':
+        try:
+            self.data = collect_observations(self.request)
+        except Exception as e:
+            print('Requesting data raised an exception: ', e)
+        else:
+            self.last_update = datetime.datetime.now().isoformat()
+        # else:
+        #     print('Auto update is running. This function call has no effect')
+        #     return
+
+    # def auto_update(self, update_interval, command):
+    #     """
+    #     Update buffer manually
+    #     :param update_interval: time in seconds
+    #     :param command: start/stop
+    #     :return:
+    #     """
+    #
+    #     if command == 'start' and self.control == 'started':
+    #         print('Auto update was started already')
+    #         return
+    #     elif command == 'stop' and self.control == 'stopped':
+    #         print('Auto update was stopped already')
+    #         return
+    #     else:
+    #         self.control = command
+    #
+    #     while self.control == 'start':
+    #             try:
+    #                 self.data = collect_observations(self.request)
+    #             except Exception as e:
+    #                 print('Requesting data raised an exception: ', e)
+    #             else:
+    #                 self.last_update = datetime.datetime.now().isoformat()
+    #                 time.sleep(update_interval)
 
 
 class GEvent:
@@ -266,7 +407,7 @@ class GEvent:
 
 
 class StreamGenerator:
-    """A temporal datastream generator. Generators expired after a certain time, and have the following properties:
+    """Push a list of observations into a CEP receiver.
     Attributes:
         id: unique identifier
         cep_reciever: URL of a receiver in the processing engine
@@ -277,8 +418,8 @@ class StreamGenerator:
     stream_definition = {'name': 'geosmart.remote.test100', 'version': '1.0.0', 'nickName': 'streamTest', 'description': 'stream test', 'metaData': [{'name': 'observation_id', 'type': 'LONG'}, {'name': 'result_time', 'type': 'STRING'}, {'name': 'symbol', 'type': 'STRING'}], 'correlationData': [{'name': 'generator_id', 'type': 'STRING'}], 'payloadData': [{'name': 'Temperature', 'type': 'DOUBLE'}, {'name': 'x_coord', 'type': 'DOUBLE'}, {'name': 'y_coord', 'type': 'DOUBLE'}]}
         #  TODO:  remove dependency of the above stream definition, specially on the payloadData (phenomena name)
 
-    def __init__(self, datastream_uri, expiration_, receiver_endpoint, update_frequency=5000):
-        self.datastream = datastream_uri
+    def __init__(self, observations, expiration_, receiver_endpoint, update_frequency=5000):
+        self.observations = observations
         # self.cep_url = cep_receiver
         self.update_frequency = update_frequency
         self.expiration = expiration_
@@ -286,7 +427,6 @@ class StreamGenerator:
         # self.gevent_id = gevent_id
         self.running = True
         self.receiver = receiver_endpoint
-        self.status = 'stopped'
 
     def stream_to_cep(self):
         """
@@ -312,10 +452,8 @@ class StreamGenerator:
             log.info("datastream | " + self._id)
             cep_engine.post(self.receiver, json=mapped_observation, verify=False)
             print(self._id)
-            time.sleep(self.update_frequency/1000)  # time in seconds
-            self.running = False # force stop after sending data once
             # print('observation value', mapped_observation)
-        return
+        return True
 
 
 class EventHandler:

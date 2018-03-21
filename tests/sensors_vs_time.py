@@ -1,15 +1,18 @@
 
-import cep
+
 import json
-import gevent
+from bin import gevent
 import socket
 import concurrent.futures
-import datetime
 import time
+import datetime
 import logging
 
 # config:
-no_sensors = 1000
+no_sensors = 5
+threads = 10
+update_interval = 2 # seconds
+cycles = 1
 
 log = logging.getLogger('formalizer')
 log.setLevel(logging.INFO)
@@ -26,9 +29,10 @@ log.addHandler(ch)
 
 
 log.info('STARTING EXECUTION: sensor vs time')
+log.info('Configuration: threads (%s), cycles (%s), update interval (%s)' % (str(threads), str(cycles), str(update_interval)))
 
 # 1. sensor api
-data = gevent.SensorApi('smart-santander', 'http://130.89.217.201:8080/SensorThingsServer/v1.0')
+data = gevent.SensorApi('smart-santander', 'http://130.89.217.201:8080/frost-server/v1.0')
 print(data.test())
 
 # 2. configuration file
@@ -65,8 +69,6 @@ handler = gevent.EventHandler(e, conf)
 publisher_target = 'http://' + socket.gethostbyname(socket.gethostname()) + ':80'
 
 log.info('end instantiation')
-
-
 
 # 7.2 deployment
 
@@ -112,35 +114,43 @@ for s in stream_ids:
 log.info("number of generators created: %s", str(len(generators)))
 
 # 10 Starts stream using a thread per generator:
-
-
 log.info('Start streaming')
+controller = True
+cycles_counter = 1
 
-# for g in generators:
-#     g.start_streaming()
+s_start = time.time()
+while controller:
+    print('cycle: ', cycles_counter)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+        future_to_generator = {executor.submit(g.stream_to_cep): g for g in generators}
+        for future in concurrent.futures.as_completed(future_to_generator):
+            generator = future_to_generator[future]
+            try:
+                result = future.done()
+            except Exception as exc:
+                print('%r generated an exception: %s' % (generator,exc))
+            # else:
+            #     print('%s sent data to cep %r' % (generator, result))
 
-
-with concurrent.futures.ThreadPoolExecutor(max_workers=len(generators)) as executor:
-    future_to_generator = {executor.submit(g.start_streaming()): g for g in generators}
-    for future in concurrent.futures.as_completed(future_to_generator):
-        generator = future_to_generator[future]
-        try:
-            data = future.done()
-        except Exception as exc:
-            print('%r generated an exception: %s' % (generator,exc))
-        else:
-            print('%s was started' % generator)
+    cycles_counter += 1
+    if cycles_counter <= cycles:
+        time.sleep(update_interval)
+    else:
+        controller = False
+        print("End of streaming, cycles count: ")
+s_end = time.time()
+print('streaming time:', str(s_end - s_start), 'sec.')
 
 # time  script will keep running
 # log.info('Checkpoint, sleep time started')
-if no_sensors < 100:
-    time.sleep(5+no_sensors*1.2)  # If time is too small streaming will be terminated before completed
-elif no_sensors < 200:
-    time.sleep(no_sensors/2)
-elif no_sensors < 1000:
-    time.sleep(no_sensors/4)
-else:
-    time.sleep(no_sensors/10)
+# if no_sensors < 100:
+#     time.sleep(5+no_sensors*1.2)  # If time is too small streaming will be terminated before completed
+# elif no_sensors < 200:
+#     time.sleep(no_sensors/2)
+# elif no_sensors < 1000:
+#     time.sleep(no_sensors/4)
+# else:
+#     time.sleep(no_sensors/10)
 
 # 11 Undeploy configuration files
 handler.undeploy_cep_configuration()
