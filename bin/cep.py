@@ -7,7 +7,7 @@ License: MIT
 
 import paramiko
 import traceback
-
+import uuid
 
 def get_event_stream_names(data_scheme):
     """
@@ -28,11 +28,11 @@ def get_event_stream_names(data_scheme):
     return attributes
 
 
-def map_datatastream(generator_d, observation, location, event_stream_definition):
+def map_datatastream(generator_id, data_unit, location, event_stream_definition):
     """
     maps sensor data into CEP default JSON format
-    :param generator_d: id of the generator
-    :param observation: SensorAPI observation with datastream details
+    :param generator_id: id of the generator
+    :param data_unit: SensorAPI observation with datastream details
     :param location: observation location as [x, y]
     :param event_stream_definition: schema of event definition in processing engine as JSON
     :return: JSON object
@@ -43,18 +43,21 @@ def map_datatastream(generator_d, observation, location, event_stream_definition
     payload_data = get_event_stream_names(event_stream_definition['payloadData'])
     payload_names = payload_data.__iter__()
 
+    # TODO: WARNING  overwriting generator id
+    generator_id= uuid.uuid4().hex
+
     event_stream = {
         "event": {
             "metaData": {
-                "observation_id": observation['@iot.id'],
-                "result_time": observation['resultTime'],
-                "symbol": observation['Datastream']['unitOfMeasurement']['symbol']
+                "observation_id": data_unit[0]["Observations"][0]['@iot.id'],
+                "result_time": data_unit[0]["Observations"][0]['resultTime'],
+                "symbol": data_unit[0]['unitOfMeasurement']['symbol']
             },
             "correlationData": {
-                "event_id": generator_d
+                "event_id": generator_id
             },
             "payloadData": {
-                next(payload_names): observation['result'],
+                next(payload_names): data_unit[0]["Observations"][0]['result'],
                 "x_coord": location[0],
                 "y_coord": location[1]
             }

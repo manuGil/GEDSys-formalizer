@@ -17,6 +17,7 @@ import tempfile
 import json
 import threading
 import logging
+import concurrent.futures
 
 log = logging.getLogger('formalizer')
 log.setLevel(logging.INFO)
@@ -202,9 +203,9 @@ def get_xy_coord(location_json):
     # request = datastream_uri + '/Thing/Locations?$top=1'
     # response = requests.get(request)
 
-    response = location_json['value'][0]['location']['coordinates']
+    result = location_json['coordinates']
 
-    return response
+    return result
 
 def prepare_observations_request(sensor_api_root, extent, phenomenon, page_size=200):
     """
@@ -220,25 +221,12 @@ def prepare_observations_request(sensor_api_root, extent, phenomenon, page_size=
 
     if is_valid_wkt_polygon(extent):
         observations_request = sensor_api_root + "/Things?$top="+ str(page_size) + \
-            "&$select=name,@iot.id&$expand=Datastreams($select=@iot.selflink," + \
-            "unitOfMeasurement;$expand=Observations($orderby=phenomenonTime desc;$top=1))," + \
-                      "Locations($select=location)&$filter=geo.intersects(Things/Locations/location," + \
+            "&$filter=geo.intersects(Things/Locations/location," + \
                       "geography'" + extent + "')" + \
-                      " and Datastreams/ObservedProperty/name eq '" + phenomenon + "'"
+                      " and Datastreams/ObservedProperty/name eq '" + phenomenon + "'" + \
+            "&$select=name,@iot.id&$expand=Datastreams($select=@iot.selflink,unitOfMeasurement;$filter=ObservedProperty/name eq '" + phenomenon + "';" + \
+            "$expand=Observations($orderby=phenomenonTime desc;$top=1)),Locations($select=location;$expand=HistoricalLocations($select=time;$orderby=time desc;$top=1))"
 
-        # Construct test request, will retrieve only one item
-        test_request = sensor_api_root + "/Things?$top=1" + \
-            "&$select=name,@iot.id&$expand=Datastreams($select=@iot.selflink," + \
-            "unitOfMeasurement;$expand=Observations($orderby=phenomenonTime desc;$top=1))," + \
-                      "Locations($select=location)&$filter=geo.intersects(Things/Locations/location," + \
-                      "geography'" + extent + "')" + \
-                      " and Datastreams/ObservedProperty/name eq '" + phenomenon + "'"
-
-        try:
-            test = requests.get(url=test_request)  # json object
-
-        except requests.HTTPError:
-            print('HTTP error for the request: ' + str(observations_request))
     else:
         print('Extent definition is not valid')
         return
@@ -262,7 +250,8 @@ def collect_observations(observations_request):
         response_json = request.json()
         # collect data
         observations = response_json["value"]  # collect things from all responses. A list
-
+        # print('type of observations', type(observations))
+        # print(observations)
         make_request = True
         # retrieve data from all pages
         while make_request:
@@ -275,7 +264,6 @@ def collect_observations(observations_request):
         return observations
 
 
-
 def test_remote_connection(url):
     """ Test if a remote HTTP connection is listening
     :param url: valid URL for the connection
@@ -285,7 +273,7 @@ def test_remote_connection(url):
     return True
 
 
-class ObservationsBuffer:
+class Buffer:
     """
     Buffers a list of observations from the SensorThingAPI
 
@@ -304,6 +292,7 @@ class ObservationsBuffer:
         self.request = request
         self.last_update = None
         self.update_interval = update_interval
+        self.size = 0  # number of data units
         # self.control = 'stop'
 
         try:
@@ -312,6 +301,7 @@ class ObservationsBuffer:
             print('Requesting data raised an exception: ', e)
         else:
             self.last_update = datetime.datetime.now().isoformat()
+            self.size = len(self.data)
 
     def update_data(self):
         """
@@ -325,6 +315,7 @@ class ObservationsBuffer:
             print('Requesting data raised an exception: ', e)
         else:
             self.last_update = datetime.datetime.now().isoformat()
+            self.size = len(self.data)
         # else:
         #     print('Auto update is running. This function call has no effect')
         #     return
@@ -383,14 +374,26 @@ class GEvent:
         self.id_ = uuid.uuid4().hex
 
     def phenomena_names(self):
+        """
+            :param condition: a dictionary containing detection rules, using JSON-logic syntax
+            :return:
+            """
         names = []
-        for phenomenon in self.conditions.values():
-            names.append(phenomenon[0])
+        key_ = self.conditions.keys()
+        values = self.conditions[list(key_)[0]]
+        statements = [self.conditions]
+
+        while isinstance(values[0], dict):
+            key_ = values[0].keys()
+            statements = values
+            values = values[0][list(key_)[0]]
+        for s in statements:
+            names.append(list(s.values())[0][0])
         return names
 
     def phenomenon_json_type(self, phenomenon_name):
         """ Converts python datatypes into JSON (CEP specific) data types"""
-        for name_value in self.conditions.values():
+        for name_value in self.conditions.values(): # TODO: deal with nested statements
             try:
                 phenomenon_name in name_value
             except ValueError:
@@ -406,53 +409,86 @@ class GEvent:
                     raise TypeError('Type conversion not defined!!')
 
 
+def push_to_cep(datastream, receiver_url):
+    """
+    Send data to a CEP receiver
+    :param datastream: mapped datastreasm
+    :param receiver_url: URL endpoint
+    :return:
+    """
+    log.info('datastream | 100 | ' + datastream['event']['correlationData']['event_id'])
+    request = requests.post(receiver_url, json=datastream, verify=False)
+    log.info('cep response | 200 | ' + datastream['event']['correlationData']['event_id'])
+    request.raise_for_status()
+    return request.status_code
+
+
 class StreamGenerator:
-    """Push a list of observations into a CEP receiver.
+    """Push a list of observations into a CEP receiver, using a thread pool
     Attributes:
         id: unique identifier
         cep_reciever: URL of a receiver in the processing engine
-        datastream_uri: url of a datastream in the sensor API
+        observation_data: observation data as provided by the Buffer class.
         update_frequency: frequency in milliseconds to send request. Default 5 seconds.
         expiration: ISO formatted time at which the generator should expire.
     """
     stream_definition = {'name': 'geosmart.remote.test100', 'version': '1.0.0', 'nickName': 'streamTest', 'description': 'stream test', 'metaData': [{'name': 'observation_id', 'type': 'LONG'}, {'name': 'result_time', 'type': 'STRING'}, {'name': 'symbol', 'type': 'STRING'}], 'correlationData': [{'name': 'generator_id', 'type': 'STRING'}], 'payloadData': [{'name': 'Temperature', 'type': 'DOUBLE'}, {'name': 'x_coord', 'type': 'DOUBLE'}, {'name': 'y_coord', 'type': 'DOUBLE'}]}
         #  TODO:  remove dependency of the above stream definition, specially on the payloadData (phenomena name)
 
-    def __init__(self, observations, expiration_, receiver_endpoint, update_frequency=5000):
-        self.observations = observations
+    def __init__(self, observation_data, expiration_, receiver_endpoint, update_frequency=5, max_workers=1):
+        self.observation_data = observation_data # a list of observations
         # self.cep_url = cep_receiver
-        self.update_frequency = update_frequency
+        self.update_frequency = update_frequency # seconds
         self.expiration = expiration_
         self._id = str(uuid.uuid4()) # id
+        self.workers = max_workers
         # self.gevent_id = gevent_id
         self.running = True
         self.receiver = receiver_endpoint
 
-    def stream_to_cep(self):
+    def stream_to_cep(self, workers=None):
         """
         :param receiver_endpoint: url to the receiver endpoint
+        :param workers: max number of threads to push data
         :return:
         """
-        self.status = 'running'
         # start session at Sensor API
-        sensor_api = requests.Session()
+        # sensor_api = requests.Session()
         # start session at CEP server
-        cep_engine = requests.Session()
-        if self.running and (datetime.datetime.now() < datetime.datetime.strptime(self.expiration, "%Y-%m-%dT%H:%M:%SZ")):
+        # cep_engine = requests.Session()
+        if datetime.datetime.now() < datetime.datetime.strptime(self.expiration, "%Y-%m-%dT%H:%M:%SZ"):
             # retrieve data
             # TODO: check for time stamp for avoiding sending redundant data
-            latest_observation = sensor_api.get(self.datastream + '/Observations?$top=1&$expand=Datastream')
-            latest_observation_json = latest_observation.json()['value'][0]
-            location = sensor_api.get(self.datastream + '/Thing/Locations?$top=1')
-            coords = get_xy_coord(location.json())
-            # format data
-            mapped_observation = cep.map_datatastream(self._id, latest_observation_json, coords, self.stream_definition)
+
+            # map observations
+            mapped_observations = []
+            for d in self.observation_data:
+                data_unit = d['Datastreams']
+                location = d['Locations'][0]['location']
+                coords = get_xy_coord(location)
+
+                # format data
+                mapped_obs = cep.map_datatastream(self._id, data_unit, coords, self.stream_definition)
+                mapped_observations.append(mapped_obs)
 
             # push data to cep server
-            log.info("datastream | " + self._id)
-            cep_engine.post(self.receiver, json=mapped_observation, verify=False)
-            print(self._id)
-            # print('observation value', mapped_observation)
+            if workers is None:
+                workers = self.workers
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+                future_to_generator = {executor.submit(push_to_cep, data, self.receiver): data for data in mapped_observations}
+                for future in concurrent.futures.as_completed(future_to_generator):
+                    data = future_to_generator[future]
+                    try:
+                        response = future.result()
+                    except Exception as exc:
+                        print('Post request raised an exception for data: %s, %r' % (data, exc))
+                    else:
+                        print(response)
+                        pass
+
+        else:
+            print("EventStreamer has expired. Expiration: ", self.expiration)
         return True
 
 
@@ -486,6 +522,7 @@ class EventHandler:
         :param publisher_target: URL target to push event notifications
         """
         phenomena = self.event.phenomena_names() # list of names of phenomena to be detected
+        print('phenomena: ', phenomena)
         streams_in = []
         receivers = []
         ind = 1
@@ -494,7 +531,7 @@ class EventHandler:
         for phenomenon in phenomena:
             stream_name = 'geosmart.stream.in.' + self.event_id + '_' + str(ind)
             version = '1.0.0'
-            phenomenon = {"name": phenomenon , "data type": self.event.phenomenon_json_type(phenomenon)}
+            phenomenon = {"name": phenomenon, "data type": self.event.phenomenon_json_type(phenomenon)}
             s = cep.define_stream(stream_name, phenomenon, version, description='')
             receiver_id = self.event_id + str(ind)
             r = cep.define_receiver(receiver_id, stream_name, version)

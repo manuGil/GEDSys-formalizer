@@ -1,4 +1,12 @@
+"""
+Accounting for perfomance when using multithreading to push data in to CEP
 
+Using one simple event.
+Every test was performed twice, to account to the time delays when instantiating the resources for first time.
+
+Endpoint: HTTP server with 100 threads
+
+"""
 
 import json
 from bin import gevent
@@ -9,9 +17,9 @@ import datetime
 import logging
 
 # config:
-no_sensors = 5
+# no_sensors =
 threads = 10
-update_interval = 2 # seconds
+update_interval = 5 # For buffer. seconds
 cycles = 1
 
 log = logging.getLogger('formalizer')
@@ -32,15 +40,14 @@ log.info('STARTING EXECUTION: sensor vs time')
 log.info('Configuration: threads (%s), cycles (%s), update interval (%s)' % (str(threads), str(cycles), str(update_interval)))
 
 # 1. sensor api
-data = gevent.SensorApi('smart-santander', 'http://130.89.217.201:8080/frost-server/v1.0')
-print(data.test())
+sensor_api = gevent.SensorApi('smart-santander', 'http://130.89.217.201:8080/frost-server/v1.0')
+print(sensor_api.test())
 
 # 2. configuration file
 conf_f = '../bin/config.json'
 with open(conf_f) as c:
     cf = c.read()
     conf = json.loads(cf)
-
 
 log.info('start intantiation')
 
@@ -66,7 +73,7 @@ handler = gevent.EventHandler(e, conf)
 
 # 7. Deploy configuration files in CEP
 # 7.1 URL target for publisher
-publisher_target = 'http://' + socket.gethostbyname(socket.gethostname()) + ':80'
+publisher_target = 'http://' + socket.gethostbyname(socket.gethostname()) + ':9090'
 
 log.info('end instantiation')
 
@@ -92,54 +99,35 @@ re = conf["geosmart.sys"]["cep"]["root url"] + '/' + 'httpReceiver' + name
 re = re + '1'
 # print('data will be send to: ', re)
 
-# 9. create stream generators
-# print(e.extent)
-stream_ids = gevent.find_datastreams(data.url, e.extent, e.phenomena_names()[0])
+# 9. Crate observations buffer
+data_request = gevent.prepare_observations_request(sensor_api.url, e.extent, e.phenomena_names()[0]) # TODO: generation of buffers in the case of multiple phenomena
+log.info("Buffering data")
+data_buffer = gevent.Buffer(data_request, update_interval)
+log.info("Data buffer ready")
+log.info("Number of sensors in buffer: %s", str(len(data_buffer.data)))
 
-if no_sensors < len(stream_ids):
-    stream_ids = stream_ids[0:no_sensors]
-else:
-    stream_ids = stream_ids * 20
-    stream_ids = stream_ids[0:no_sensors]
-
-log.info("Number of sensors: %s", str(len(stream_ids)))
-# name must match name in Sensor API
 expiration = '2018-12-31T10:00:00Z'
 generators = []
 
-for s in stream_ids:
-    g = gevent.StreamGenerator(s, expiration, re, update_frequency=0)
-    generators.append(g)
+
+g = gevent.StreamGenerator(data_buffer.data, expiration, re, update_frequency=0)
+
 
 log.info("number of generators created: %s", str(len(generators)))
 
 # 10 Starts stream using a thread per generator:
 log.info('Start streaming')
-controller = True
-cycles_counter = 1
+
 
 s_start = time.time()
-while controller:
-    print('cycle: ', cycles_counter)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-        future_to_generator = {executor.submit(g.stream_to_cep): g for g in generators}
-        for future in concurrent.futures.as_completed(future_to_generator):
-            generator = future_to_generator[future]
-            try:
-                result = future.done()
-            except Exception as exc:
-                print('%r generated an exception: %s' % (generator,exc))
-            # else:
-            #     print('%s sent data to cep %r' % (generator, result))
 
-    cycles_counter += 1
-    if cycles_counter <= cycles:
-        time.sleep(update_interval)
-    else:
-        controller = False
-        print("End of streaming, cycles count: ")
-s_end = time.time()
-print('streaming time:', str(s_end - s_start), 'sec.')
+g.stream_to_cep(workers=threads)
+
+e_end = time.time()
+
+log.info("Total data push time (s):" + str(e_end - s_start))
+
+print('buffer size: ', data_buffer.size, ' ET streaming time: ', (e_end - s_start))
 
 # time  script will keep running
 # log.info('Checkpoint, sleep time started')
