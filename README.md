@@ -53,8 +53,9 @@ An event definition are embedded using the <a href= "http://jsonlogic.com/">Json
 }
 ```
 
-More complex rules are possible, including multiple conditions, logic operators (AND, OR), and negation. For example for an coposite event including Temperature and Luminisity.
+More complex rules are possible, including multiple conditions, logic operators (AND, OR), and negation. For example for an composite event including Temperature and Luminosity.
 
+Simple Event:
 ```python
 {
 "conditions": {
@@ -71,6 +72,13 @@ More complex rules are possible, including multiple conditions, logic operators 
           }
         ]
       }
+}
+```
+
+Composite event:
+```
+{"example":
+    []
 }
 ```
 
