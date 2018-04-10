@@ -18,7 +18,7 @@ import logging
 
 # config:
 # no_sensors =
-threads = 10
+threads = 1
 update_interval = 5 # For buffer. seconds
 cycles = 1
 
@@ -33,7 +33,6 @@ fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 log.addHandler(fh)
 log.addHandler(ch)
-
 
 
 log.info('STARTING EXECUTION: sensor vs time')
@@ -52,7 +51,7 @@ with open(conf_f) as c:
 log.info('start intantiation')
 
 # 3. Open event definition file
-e_def = '../tests/event_def_test.json'
+e_def = '../tests/composite_event_def.json'
 with open(e_def) as ed:
     f = ed.read()
     f = json.loads(f)
@@ -83,7 +82,7 @@ log.info('start cep config deployment')
 handler.deploy_cep_configuration(publisher_target)
 delay = 10
 print('.....Waiting for deployment %s seconds....' % delay)
-time.sleep(delay) # (seconds) induce delay, to allow CEP server to deploy files
+time.sleep(delay)  # (seconds) induce delay, to allow CEP server to deploy files
 
 log.info('End cep config deployment')
 
@@ -100,7 +99,7 @@ re = re + '1'
 # print('data will be send to: ', re)
 
 # 9. Crate observations buffer
-data_request = gevent.prepare_observations_request(sensor_api.url, e.extent, e.phenomena_names()[0]) # TODO: generation of buffers in the case of multiple phenomena
+data_request = gevent.prepare_observations_request(sensor_api.url, e.extent, e.phenomena_names()[0])
 log.info("Buffering data")
 data_buffer = gevent.Buffer(data_request, update_interval)
 log.info("Data buffer ready")

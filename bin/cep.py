@@ -164,11 +164,11 @@ def map_stream_to_processor(stream_definition):
     return mapped_stream
 
 
-def cep_query(event_condition, in_alias, out_alias):
+def simple_cep_query(event_condition, in_alias, out_alias):
     """
     Translate conditions in an event definition into a filter query
     :param event_condition: event conditions in event definition file,
-    a tuple of the format: ('operator', ['phenomenon', value])
+    a list of tuple of the format: ('operator', ['phenomenon', value])
     :param in_alias: alias of the input stream
     :param out_alias: alias of the output stream
     :return: query (a string) in siddhiql
@@ -229,7 +229,7 @@ def define_execution_plan(name, input_streams, output_stream, event_condition, d
     else:
         plan_description = description
 
-    query = cep_query(event_condition, input_aliases[0], output_alias)
+    query = simple_cep_query(event_condition, input_aliases[0], output_alias)
 
     plan = """/* Enter a unique ExecutionPlan */
             @Plan:name('""" + name + """')

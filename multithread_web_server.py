@@ -50,7 +50,7 @@ class S(BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])  # <--- Gets the size of data
         post_data = self.rfile.read(content_length)  # <--- Gets the data itself
         content = json.loads(str(post_data, 'utf8'))
-        print(content)
+        # print(content)
 
         streamer_id = content['event']['correlationData']['event_id']
         log.info('Notification ' + str(counter) + ' | 300 | ' + streamer_id)
