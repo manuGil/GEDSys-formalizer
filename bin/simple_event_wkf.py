@@ -1,5 +1,5 @@
 """
-Workflow for detecting simple geographic events
+Routine for instantiating a simple geographic event into GEDSys.
 """
 
 import json
@@ -42,20 +42,12 @@ with open(conf_f) as c:
 log.info('start intantiation')
 
 # 3. Open event definition file
-e_def = '../tests/composite_event_def.json'
+e_def = '../tests/simple_event_def.json'
 with open(e_def) as ed:
     f = ed.read()
     f = json.loads(f)
 
-# 4. check connection to CEP service
-# currently it raise a SSL verification error due to an old SSL certificate in the server.
-# spkipping this step for now
-# try:
-#     gevent.test_remote_connection(conf["geosmart.sys"]["cep"]["root url"])
-# except Exception as e:
-#     raise ('CEP server connection raised an exception', e)
-
-# 5. create g-event
+# 4. create g-event
 e = gevent.GEvent(f)
 
 # 6. create event handler per g-event
@@ -64,11 +56,9 @@ handler = gevent.EventHandler(e, conf)
 # 7. Deploy configuration files in CEP
 # 7.1 URL target for publisher
 publisher_target = 'http://' + socket.gethostbyname(socket.gethostname()) + ':9090'
-
 log.info('end instantiation')
 
-# 7.2 deployment
-
+# 7.2 deploy to CEP
 log.info('start cep config deployment')
 handler.deploy_cep_configuration(publisher_target)
 delay = 10
@@ -87,7 +77,6 @@ name = name[:pos2]
 # print(name)
 re = conf["geosmart.sys"]["cep"]["root url"] + '/' + 'httpReceiver' + name
 re = re + '1'
-# print('data will be send to: ', re)
 
 # 9. Crate observations buffer
 data_request = gevent.prepare_observations_request(sensor_api.url, e.extent, e.phenomena_names()[0])
@@ -99,15 +88,12 @@ log.info("Number of sensors in buffer: %s", str(len(data_buffer.data)))
 expiration = '2018-12-31T10:00:00Z'
 generators = []
 
-
 g = gevent.StreamGenerator(data_buffer.data, expiration, re, update_frequency=0)
-
 
 log.info("number of generators created: %s", str(len(generators)))
 
 # 10 Starts stream using a thread per generator:
 log.info('Start streaming')
-
 
 s_start = time.time()
 
@@ -117,20 +103,10 @@ e_end = time.time()
 
 log.info("Total data push time (s):" + str(e_end - s_start))
 
-print('buffer size: ', data_buffer.size, ' ET streaming time: ', (e_end - s_start))
+# print('buffer size: ', data_buffer.size, ' ET streaming time: ', (e_end - s_start))
 
-# time  script will keep running
-# log.info('Checkpoint, sleep time started')
-# if no_sensors < 100:
-#     time.sleep(5+no_sensors*1.2)  # If time is too small streaming will be terminated before completed
-# elif no_sensors < 200:
-#     time.sleep(no_sensors/2)
-# elif no_sensors < 1000:
-#     time.sleep(no_sensors/4)
-# else:
-#     time.sleep(no_sensors/10)
-
-# 11 Undeploy configuration files
+# 11 un-deploy configuration files
 handler.undeploy_cep_configuration()
+log.info("Un-deployed files for gevent: " +str(g._id))
 
-print('process has finished')
+# ('process has finished')
