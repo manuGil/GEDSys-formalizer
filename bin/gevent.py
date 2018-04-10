@@ -273,6 +273,27 @@ def test_remote_connection(url):
     return True
 
 
+def json_type(phenomenon_name):
+    """
+    Predefined JSON data types for phenomena
+    :param phenomenon_name: name of a phenomena
+    :return: string with JSON data type
+    """
+    phenomenon = str.lower(phenomenon_name)
+    data_types = {
+        'temperature': 'DOUBLE',
+        'luminosity': 'DOUBLE',
+        'precipitation': 'DOUBLE'
+    }
+
+    try:
+        type_ = data_types[phenomenon]
+    except Exception:
+        raise TypeError('A data type is not defined for phenomenon:', phenomenon_name)
+    else:
+        return type_
+
+
 class Buffer:
     """
     Buffers a list of observations from the SensorThingAPI
@@ -376,7 +397,7 @@ class GEvent:
     def phenomena_names(self):
         """
             :param condition: a dictionary containing detection rules, using JSON-logic syntax
-            :return:
+            :return: list of names
             """
         names = []
         key_ = self.conditions.keys()
@@ -392,21 +413,8 @@ class GEvent:
         return names
 
     def phenomenon_json_type(self, phenomenon_name):
-        """ Converts python datatypes into JSON (CEP specific) data types"""
-        for name_value in self.conditions.values(): # TODO: deal with nested statements
-            try:
-                phenomenon_name in name_value
-            except ValueError:
-                print('No name match, continue looking')
-                continue
-            else:
-                python_type = type(name_value[1])
-                if python_type == int or python_type == float:
-                    return 'DOUBLE'
-                elif python_type == str:
-                    return 'STRING'
-                else:
-                    raise TypeError('Type conversion not defined!!')
+        """ """
+        return json_type(phenomenon_name)
 
 
 def push_to_cep(datastream, receiver_url):
