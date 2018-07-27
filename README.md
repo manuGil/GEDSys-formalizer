@@ -1,6 +1,11 @@
 # Event Formalizer
 
-Implementation of the Event Formalizer the Geographic Event Detection System.
+Implementation of the Event Formalizer for the Geographic Event Detection System.
+
+## Prerequisites
+
+1. <a href= "https://github.com/FraunhoferIOSB/FROST-Server">FROST-Server</a> v1.0, an implementation of the OGC SensThing API.
+  2. <a href= "https://wso2.com/analytics/previous-releases">WSO2 Data Analytics Server</a> v3.1.0, a Complex Event Processing implementing the SiddhiQL language.
 
 ## Event Definition
 Users define events by providing a name, a update frequency (in milliseconds), and a set of properties. Event definitions are formatted as JSON objects, with the following pattern:
@@ -115,7 +120,7 @@ The following query retrieves the latest observation and location of the things 
 `json
 http://130.89.217.201:8080/frost-server/v1.0/Things?$filter=geo.intersects(Locations/location,geography'POLYGON((-3.8469736283051370 43.4414847853464039, -3.8469736283051370 43.4863448420050389,  -3.7663235810882401 43.4863448420050389, -3.7663235810882401 43.4414847853464039, -3.8469736283051370 43.4414847853464039))') and Datastreams/ObservedProperty/name eq 'Luminosity'&$select=name,@iot.id&$expand=Datastreams($select=@iot.selflink,unitOfMeasurement;$filter=ObservedProperty/name eq 'Luminosity';$expand=Observations($orderby=phenomenonTime desc;$top=1)),Locations($select=location;$expand=HistoricalLocations($select=time;$orderby=time desc;$top=1))`
 
-Output example ()
+Output example:
 
 `{
     "@iot.count": 557,
