@@ -1,6 +1,6 @@
 # Event Formalizer
 
-Implementation of the Formalizer component for the Geographic Event Detection System.
+Implementation of the Event Formalizer the Geographic Event Detection System.
 
 ## Event Definition
 Users define events by providing a name, a update frequency (in milliseconds), and a set of properties. Event definitions are formatted as JSON objects, with the following pattern:
