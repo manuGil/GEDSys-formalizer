@@ -11,7 +11,7 @@ Implementation of the Event Formalizer for the Geographic Event Detection System
 * Deployment of Java applications in Tomcat
 * Stream processing/Complex Event Processing with https://wso2.com/products/complex-event-processor
 
-#Use
+# Use
 
 ## Prerequisites
 
