@@ -1,6 +1,6 @@
 # Event Formalizer
 
-Implementation of the Event Formalizer for the Geographic Event Detection System
+A program implementating the Event Formalizer of Geographic Event Detection System. The system enables the definition and detection of events in real-time on data from sensors networks.
 
 ## Adquired Skills
 
