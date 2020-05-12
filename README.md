@@ -2,6 +2,17 @@
 
 Implementation of the Event Formalizer for the Geographic Event Detection System
 
+## Adquired Skills
+
+* Object oriented programming
+* JSON and XML
+* OGC SensorThings API standard
+* Software architecture
+* Deployment of Java applications in Tomcat
+* Stream processing/Complex Event Processing with https://wso2.com/products/complex-event-processor
+
+#Use
+
 ## Prerequisites
 
 1. <a href= "https://github.com/FraunhoferIOSB/FROST-Server">FROST-Server</a> v1.0, an implementation of the OGC SensThing API.
