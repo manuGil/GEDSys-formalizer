@@ -1,6 +1,6 @@
 # Event Formalizer
 
-Implementation of the Event Formalizer for the Geographic Event Detection System.
+Implementation of the Event Formalizer for the Geographic Event Detection System
 
 ## Prerequisites
 
@@ -215,3 +215,6 @@ Output example:
         }
     ]
 }`
+
+## More about GEDSys
+Garcia Alvarez, M.; Morales, J.; Kraak, M.-J. Integration and Exploitation of Sensor Data in Smart Cities through Event-Driven Applications. Sensors 2019, 19, 1372. https://www.mdpi.com/1424-8220/19/6/1372
