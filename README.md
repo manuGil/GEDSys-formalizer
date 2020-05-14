@@ -5,7 +5,8 @@ A program implementating the Event Formalizer of Geographic Event Detection Syst
 ## Adquired Skills
 
 * Object oriented programming
-* JSON and XML
+* Unit testing
+* JSON and XML parsing
 * OGC SensorThings API standard
 * Software architecture
 * Deployment of Java applications in Tomcat
