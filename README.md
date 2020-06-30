@@ -109,7 +109,7 @@ XML file describing the details of a receiver and the association with one and o
 Custom CEP formal file (.siddhiql) describing the rules to be applied to an associated data stream. An execution plan needs to be associated with  existing event streams. An input event stream feed data to the execution plan in runtime, and output event stream outputs data produced by the CEP engine. In this implementation an execution plan must be associated with one *input* event stream and one *output* event stream.
 
 Execution plans contain a query parameter which applies detection rules.
-Queries must be written using the <a href=https://docs.wso2.com/display/DAS310/Siddhi+Query+Language>shiddhiql</a> language.  For now this implementation only support filtering. A query containing a filter has the follow structure:
+Queries must be written using the <a href=https://docs.wso2.com/display/DAS310/Siddhi+Query+Language>SiddhiQL</a> language.  For now this implementation only support filtering. A query containing a filter has the follow structure:
 
 ``` sql
 from <input stream name> [<filter condition>]
